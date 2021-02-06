@@ -1,0 +1,135 @@
+pragma solidity ^0.8.0;
+
+contract Bank {
+    
+    address owner;
+    struct User {
+        string name;
+        uint balance;
+        address accAddress;
+    }
+    
+    // Mapping of struct 'User' and KYC
+    mapping(address => User) users;
+    mapping(address => bool) kyc;
+    
+    // Events for Payments
+    event Registered(string _name, uint _balance, address _addr);
+    event Deposited(address _addr, uint _upBalance, uint _amt);
+    
+    // Check KYC is already done or not
+    modifier kycTrue {
+        require(kyc[msg.sender] == true, "Your KYC is not completed..!!");
+        _;
+    }
+    
+    // Check account already exist 
+    // Used in constructor and register function
+    modifier accExist {
+        require(users[msg.sender].accAddress != msg.sender, "Acount for this address is already exist");
+        _;
+    }
+    
+    // Check owner, used in getBankBalance and in KYC function
+    modifier ownerCheck {
+        require(msg.sender == owner, "You are not the owner.");
+        _;
+    }
+    
+    // Check user has account or not
+    // used in kycStatus, checkBalance and closeAccount
+    modifier registered_User {
+        require(users[msg.sender].accAddress == msg.sender, "You dont have any account");
+        _;
+    }
+    
+    // Used in withdraw and transfer function
+    modifier balance_check {
+        require(users[msg.sender].balance >= msg.value, "Insufficient balance.");
+        _;
+    }
+    
+    // create owners acoount at time of deploying contract
+    constructor() public accExist {
+        owner = msg.sender;
+        User memory user = User("Prakash", 0, msg.sender);
+        users[msg.sender] = user;
+        kyc[msg.sender] = true;
+    }
+    
+    // Register new user with 2 ethers of balance
+    function register(string memory _name) public accExist payable {
+        require(msg.value > 2 ether, "You need to deposit at least 2 ethers to open account");
+        User memory user = User(_name, msg.value, msg.sender);
+        users[msg.sender] = user;
+        emit Registered(_name, msg.value, msg.sender);
+    }
+    
+    // KYC of user by owner 
+    function makeKyc(address _receiver) public ownerCheck {
+        require(kyc[_receiver] != true, "KYC already done");
+        // Check user has account or not then only do KYC
+        require(users[_receiver].accAddress == _receiver, "You dont have any account");
+        kyc[_receiver] = true;
+    }
+    
+    function kycStatus() public registered_User view returns(bool){
+        return kyc[msg.sender];
+    }
+    
+    // event function used for deposit
+    function deposit() public kycTrue payable {
+        users[msg.sender].balance += msg.value;
+        emit Deposited(msg.sender, users[msg.sender].balance, msg.value);
+    }
+    
+    // withdraw from contract and transfer to address
+    function withdraw(uint _amt) public kycTrue balance_check payable {
+        users[msg.sender].balance -= _amt;
+        payable(msg.sender).transfer(_amt);
+        
+    }
+    
+    //event for transfering eth
+    event sent(address from, address to, uint amount);
+    
+    // transfer function deduct amount and send to receiver's account and not to their address
+    // transfer within the bank
+    function transfer(address _receiver, uint _amt) public kycTrue balance_check payable {
+        //1.first deduct from sender
+        users[msg.sender].balance -= _amt;
+        //2.deposit to receiver
+        users[_receiver].balance += _amt;
+        //call send event for transfering eth
+        emit sent(msg.sender, _receiver, _amt);
+    }
+    
+    // check balance of current user
+    // only registered_User can see their balance
+    function checkBalance() public registered_User view returns(uint){
+        return users[msg.sender].balance;
+    }
+    
+    // only owner can see total fund of Bank
+    function getBankBalance() public ownerCheck view returns(uint) {
+        return address(this).balance;
+    }
+    
+    // Owner cant close
+    // registered_User is requred
+    function closeAccount() public registered_User payable {
+        require(users[msg.sender].accAddress != owner, "Owner can not close account");
+        uint balance = users[msg.sender].balance;
+        delete users[msg.sender];
+        kyc[msg.sender] = false;
+        payable(msg.sender).transfer(balance);
+    }
+    
+    // Fallback function
+    // users can give fund to Bank directly
+    receive () external payable {
+        if (msg.value > 0) {
+            deposit();
+        }
+    }
+}

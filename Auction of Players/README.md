@@ -1,4 +1,4 @@
-# This contract does Players Auction.
+# This Smart contract does Auction of Players.
 1.	Manager is created at time of deploy by constructor.
 2.	Manager will Register Players.
 3.	Then manager get players for Auction.

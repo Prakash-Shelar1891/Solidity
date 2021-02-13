@@ -1,7 +1,7 @@
 # This contract does Players Auction.
 1.	Manager is created at time of deploy by constructor.
 2.	Manager will Register Players.
-3.	Then manager get players for Auction,
+3.	Then manager get players for Auction.
 4.	Only manager can start the Auction with certain Time limit.
 5.	End of auction time we get max bidder.
 6.	Then that max bidder buys Player by transferring the Bid amount raised by that Bidder and player will be added to their team.
